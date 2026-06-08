@@ -41,6 +41,8 @@ export default class NRDoc {
         } else if(mode === 'replace-headings'){
           doc.setValue(doc.getValue().replace(originalContent, contentToInsert));
         }
+
+        //TODO: updateOriginChildren--
     }
 
     async markdownLink(filePath: string){

@@ -2,7 +2,12 @@ import typescript from '@rollup/plugin-typescript';
 import {nodeResolve} from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import copy from 'rollup-plugin-copy';
-const TEST_VAULT = 'test-vault/.obsidian/plugins/note-refactor-obsidian';
+
+//original
+//const TEST_VAULT = 'test-vault/.obsidian/plugins/note-refactor-obisidian';
+
+//fork
+const TEST_VAULT = 'C:/Users/agodi/OneDrive/OBSIDIAN/Woody/.obsidian/plugins/note-refactor-fork';
 
 export default {
   input: 'src/main.ts',

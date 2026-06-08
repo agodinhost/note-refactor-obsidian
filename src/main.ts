@@ -77,6 +77,8 @@ export default class NoteRefactor extends Plugin {
       callback: () => this.editModeGuard(() => this.extractSelectionContentOnly('split')),
     });
 
+    //TODO: include a option to find the max heading level in the note and split by that, or maybe even by all heading levels at once, creating a hierarchy of notes based on the heading levels.
+
     this.addCommand({
       id: 'app:split-note-by-heading-h1',
       name: 'Split note by headings - H1',
@@ -117,7 +119,19 @@ export default class NoteRefactor extends Plugin {
       const doc = mdView.editor;
       const headingNotes = this.NRDoc.contentSplitByHeading(doc, headingLevel);
       const dedupedFileNames = this.file.ensureUniqueFileNames(headingNotes);
+
+      // TODO: read the origin tags and pass them to the created notes,
+      // and then update the origin children with the new notes,
+      // and remove the origin tags from the original note.
+
+      // This will ensure that the links between the notes are preserved,
+      // and that the origin note is not linked to the new notes as a child,
+      // but rather as a sibling, which is more accurate in terms of the note structure after the split.
+
       headingNotes.forEach((hn, i) => this.createNoteWithFirstLineAsFileName(dedupedFileNames[i], hn, mdView, doc, 'replace-headings', true));
+      if (this.settings.updateFrontmatter) {
+        // TODO: updateOriginChildren - this will be needed to update the origin children list.
+      }
   }
 
   async extractSelectionFirstLine(mode: ReplaceMode): Promise<void> {
@@ -158,6 +172,10 @@ export default class NoteRefactor extends Plugin {
 
     await this.obsFile.createOrAppendFile(fileName, note);
     await this.NRDoc.replaceContent(fileName, filePath, doc, mdView.file, note, originalNote, mode);
+    // updateOriginChildren is not needed for this method as the original content is not split by headings,
+    // but it is replaced as a whole, so the link will replace the whole content in the original note.
+    // This means that there won't be any remaining children to update, as the original note's content is entirely
+    // replaced by the link to the new note. --
     if(!isMultiple) {
         await this.app.workspace.openLinkText(fileName, getLinkpath(filePath), true);
     }
@@ -178,6 +196,10 @@ export default class NoteRefactor extends Plugin {
     }
     await this.obsFile.createOrAppendFile(fileName, note);
     await this.NRDoc.replaceContent(fileName, filePath, doc, mdView.file, note, originalNote, mode);
+    // updateOriginChildren is not needed for this method as the original content is not split by headings,
+    // but it is replaced as a whole, so the link will replace the whole content in the original note.
+    // This means that there won't be any remaining children to update, as the original note's content is entirely
+    // replaced by the link to the new note. --
     if(!isMultiple && this.settings.openNewNote) {
         await this.app.workspace.openLinkText(fileName, getLinkpath(filePath), true);
     }

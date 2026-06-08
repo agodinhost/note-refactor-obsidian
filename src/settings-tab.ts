@@ -3,7 +3,7 @@ import {
   PluginSettingTab,
   Setting
 } from 'obsidian';
-import { Location } from './settings';
+import { Location, NoteRelationType } from './settings';
 import MomentDateRegex from './moment-date-regex';
 import NoteRefactor from './main';
 
@@ -12,6 +12,14 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
   filePrefixUPop = document.createElement('b');
   momentDateRegex = new MomentDateRegex();
   plugin: NoteRefactor;
+  //
+  splitNewNotesAsSetting!: Setting;
+  newNotesInheritOriginFieldsSetting!: Setting;
+  newNotesFrontmatterComplementSetting!: Setting;
+  newNotesFrontmatterIncludesSetting!: Setting;
+  newNotesFrontmatterExcludesSetting!: Setting;
+  createTagForEachNewNoteSetting!: Setting;
+
   constructor(app: App, plugin: NoteRefactor) {
     super(app, plugin);
     this.plugin = plugin;
@@ -161,6 +169,109 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
           this.plugin.settings.normalizeHeaderLevels = value;
           this.plugin.saveData(this.plugin.settings);
         }));
+
+    /* fork settings */
+    new Setting(containerEl)
+      .setName('Update Frontmatter?')
+      .setDesc('When content has been extracted/split into a new note, update the frontmatter children and parent fields to reflect the new note structure')
+      .addToggle(toggle => toggle.setValue(this.plugin.settings.updateFrontmatter)
+        .onChange((value) => {
+          this.plugin.settings.updateFrontmatter = value;
+          this.plugin.saveData(this.plugin.settings);
+          this.refresh();
+        }));
+
+    this.splitNewNotesAsSetting = new Setting(containerEl)
+      .setName("Create New Notes As")
+      .setDesc("How to relate the new notes created during refactoring to the original note?")
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption(NoteRelationType.Child, "Child")
+          .addOption(NoteRelationType.Sibling, "Sibling")
+          .addOption(NoteRelationType.Friend, "Friend")
+          .setValue(this.plugin.settings.splitNewNotesAs)
+          .onChange((value) => {
+            this.plugin.settings.splitNewNotesAs = value as NoteRelationType;
+            this.plugin.saveData(this.plugin.settings);
+            this.refresh();
+          });
+      });
+
+    this.newNotesFrontmatterComplementSetting = new Setting(containerEl)
+      .setName('New Notes Complement')
+      .setDesc('This setting allows you to specify additional content to be added to the new notes created during refactoring. ' +
+        'This will be used ONLY to complement the new notes as friends.')
+      .addText((text) =>
+        text
+          .setPlaceholder('Friend, Left, Right')
+          .setValue(this.plugin.settings.newNotesComplement)
+          .onChange((value) => {
+            this.plugin.settings.newNotesComplement = value;
+            this.plugin.saveData(this.plugin.settings);
+          }));
+
+    this.newNotesInheritOriginFieldsSetting = new Setting(containerEl)
+      .setName('New Notes Inherit Origin Fields?')
+      .setDesc('When content has been extracted/split into a new note, inherit fields from the original note')
+      .addToggle(toggle => toggle.setValue(this.plugin.settings.newNotesInheritOriginFields)
+        .onChange((value) => {
+          this.plugin.settings.newNotesInheritOriginFields = value;
+          this.plugin.saveData(this.plugin.settings);
+          this.refresh();
+        }));
+
+    this.newNotesFrontmatterIncludesSetting = new Setting(containerEl)
+      .setName('New Notes Frontmatter Includes')
+      .setDesc('This setting allows you to specify additional content to be included in the frontmatter of the new notes created during refactoring. ' +
+        'This can be useful for adding specific metadata to the new notes, such as a tag, a category, or any other relevant information that can help to improve organization and searchability within the vault. '+
+        'You can use the same placeholders as in the refactored note template setting. For example, if you want to add a tag with the name of the original note to the new notes, you can use the {{title}} placeholder like this: ' + 
+        '#{{title}}  - this will create a tag with the name of the original note for each new note created during refactoring.')
+      .addText((text) =>
+        text
+          .setPlaceholder('left, right')
+          .setValue(this.plugin.settings.newNotesFrontmatterIncludes)
+          .onChange((value) => {
+            this.plugin.settings.newNotesFrontmatterIncludes = value;
+            this.plugin.saveData(this.plugin.settings);
+          }));
+
+    this.newNotesFrontmatterExcludesSetting = new Setting(containerEl)
+      .setName('New Notes Frontmatter Excludes')
+      .setDesc('This setting allows you to specify content to be excluded from the frontmatter of the new notes created during refactoring. ' +
+        'This can be useful for removing specific metadata from the new notes, such as a tag, a category, or any other relevant information that can help to improve organization and searchability within the vault. '+
+        'You can use the same placeholders as in the refactored note template setting. For example, if you want to add a tag with the name of the original note to the new notes, you can use the {{title}} placeholder like this: ' + 
+        '#{{title}}  - this will create a tag with the name of the original note for each new note created during refactoring.')
+      .addText((text) =>
+        text
+          .setPlaceholder('up, down')
+          .setValue(this.plugin.settings.newNotesFrontmatterExcludes)
+          .onChange((value) => {
+            this.plugin.settings.newNotesFrontmatterExcludes = value;
+            this.plugin.saveData(this.plugin.settings);
+          }));
+
+    this.createTagForEachNewNoteSetting = new Setting(containerEl)
+      .setName('Create a Tag For Each New Note?')
+      .setDesc('When content has been extracted/split into a new note, create a tag for each new note')
+      .addToggle(toggle => toggle.setValue(this.plugin.settings.createTagForEachNewNote)
+        .onChange((value) => {
+          this.plugin.settings.createTagForEachNewNote = value;
+          this.plugin.saveData(this.plugin.settings);
+        }));
+
+    this.refresh();
+  }
+  
+  refresh(): void {
+    const vis = this.plugin.settings.updateFrontmatter ? "" : "none";
+    const visFriend = this.plugin.settings.updateFrontmatter && this.plugin.settings.splitNewNotesAs === NoteRelationType.Friend ? "" : "none";
+    const visIncExc = this.plugin.settings.updateFrontmatter && this.plugin.settings.newNotesInheritOriginFields ? "" : "none";
+    this.splitNewNotesAsSetting.settingEl.style.display = vis;
+    this.newNotesFrontmatterComplementSetting.settingEl.style.display = visFriend;
+    this.newNotesInheritOriginFieldsSetting.settingEl.style.display = vis;
+    this.newNotesFrontmatterIncludesSetting.settingEl.style.display = visIncExc;
+    this.newNotesFrontmatterExcludesSetting.settingEl.style.display = visIncExc;
+    this.createTagForEachNewNoteSetting.settingEl.style.display = vis;
   }
 
   private tempalteDescriptionContent(introText: string): DocumentFragment {
