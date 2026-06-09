@@ -1,4 +1,4 @@
-import {describe, expect, beforeAll} from '@jest/globals';
+import { describe, expect, beforeAll } from '@jest/globals';
 import NRDoc from '../src/doc';
 import { NoteRefactorSettings } from '../src/settings';
 import OSFile from '../src/osFile';
@@ -6,7 +6,7 @@ import OSFile from '../src/osFile';
 const newLocal = './tests/files/test-note.md';
 const osf = new OSFile();
 let doc: NRDoc = null;
-let fileContents:string = '';
+let fileContents: string = '';
 let content: string[] = [];
 
 describe("Note content - Content Only", () => {
@@ -75,7 +75,7 @@ describe("Note content - First Line as File Name, exclude first line", () => {
         doc = new NRDoc(settings, undefined, undefined);
         content = osf.toArray(fileContents, 0, 15);
     });
-    
+
     it("First Line text", () => {
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.firstLine(noteContent)).toBe("At the same time, I'm also just a Markdown file sitting on your hard disk. It's all in plain text, so you don't need to worry about losing me in case [[Obsidian]] disappears one day.");
@@ -90,7 +90,7 @@ describe("Note content - First Line as File Name, exclude first line", () => {
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.toArray(noteContent)[9]).toBe('- How to use [Markdown](https://www.markdownguide.org) to [[Format your notes]]');
     });
-    
+
     it("Embeds preserved", () => {
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.toArray(noteContent)[7]).toBe('- How to ![[Create notes|create new notes]].');
@@ -104,7 +104,7 @@ describe("Note content - First Line as File Name, exclude first line", () => {
 });
 
 describe("Note content - First Line as File Name, first line as heading", () => {
-    let fileContents:string = '';
+    let fileContents: string = '';
     let content: string[] = [];
 
     beforeAll(async () => {
@@ -115,7 +115,7 @@ describe("Note content - First Line as File Name, first line as heading", () => 
         doc = new NRDoc(settings, undefined, undefined);
         content = osf.toArray(fileContents, 0, 15);
     });
-    
+
     it("First Line text", () => {
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.firstLine(noteContent)).toBe("# Hi there! I'm a note in your vault.");
@@ -130,7 +130,7 @@ describe("Note content - First Line as File Name, first line as heading", () => 
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.toArray(noteContent)[11]).toBe('- How to use [Markdown](https://www.markdownguide.org) to [[Format your notes]]');
     });
-    
+
     it("Embeds preserved", () => {
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.toArray(noteContent)[9]).toBe('- How to ![[Create notes|create new notes]].');
@@ -153,7 +153,7 @@ describe("Note content - First Line as File Name, first line as heading (modifie
         doc = new NRDoc(settings, undefined, undefined);
         content = osf.toArray(fileContents, 4, 28);
     });
-    
+
     it("First Line text", () => {
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.firstLine(noteContent)).toBe("# Quick Start");
@@ -163,17 +163,17 @@ describe("Note content - First Line as File Name, first line as heading (modifie
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.lastLine(noteContent)).toBe("## Workflows");
     });
-    
+
     it("Internal links preserved", () => {
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.toArray(noteContent)[9]).toBe('- [[Keyboard shortcuts]]');
     });
-    
+
     it("External links preserved", () => {
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.toArray(noteContent)[18]).toBe('If you are a [Catalyst supporter](https://obsidian.md/pricing), and want to turn on Insider Builds, see [[Insider builds]].');
     });
-    
+
     it("Embeds preserved", () => {
         const noteContent = doc.noteContent(content[0], content.slice(1));
         expect(osf.toArray(noteContent)[20]).toBe('![Obsidian.md](https://obsidian.md/images/screenshot.png)');
