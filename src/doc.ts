@@ -41,8 +41,6 @@ export default class NRDoc {
         } else if(mode === 'replace-headings'){
           doc.setValue(doc.getValue().replace(originalContent, contentToInsert));
         }
-
-        //TODO: updateOriginChildren--
     }
 
     async markdownLink(filePath: string){
@@ -155,4 +153,11 @@ export default class NRDoc {
       }
       return headingLevel;
     }
+
+//     //TODO: this method should be responsible for updating the origin note frontmatter after refactoring, based on the plugin settings.
+//     updateOriginFrontmatter(currentNote: string, contentToInsert: string): boolean {
+//         if(!this.settings.updateFrontmatter) { return false }
+//         return false;
+//     }
+//
 }

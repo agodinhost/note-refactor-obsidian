@@ -120,17 +120,26 @@ export default class NoteRefactor extends Plugin {
       const headingNotes = this.NRDoc.contentSplitByHeading(doc, headingLevel);
       const dedupedFileNames = this.file.ensureUniqueFileNames(headingNotes);
 
-      // TODO: read the origin tags and pass them to the created notes,
-      // and then update the origin children with the new notes,
-      // and remove the origin tags from the original note.
-
-      // This will ensure that the links between the notes are preserved,
-      // and that the origin note is not linked to the new notes as a child,
-      // but rather as a sibling, which is more accurate in terms of the note structure after the split.
-
       headingNotes.forEach((hn, i) => this.createNoteWithFirstLineAsFileName(dedupedFileNames[i], hn, mdView, doc, 'replace-headings', true));
+
       if (this.settings.updateFrontmatter) {
-        // TODO: updateOriginChildren - this will be needed to update the origin children list.
+        const originFile = mdView.file;
+        if(originFile) {
+          const fm = this.obsFile.getFrontmatter(originFile);
+          this.obsFile.logFrontmatter(fm);
+
+          // TODO: read the origin tags and pass them to the created notes,
+          // and then update the origin children with the new notes,
+          // and remove the origin tags from the original note.
+
+          // This will ensure that the links between the notes are preserved,
+          // and that the origin note is not linked to the new notes as a child,
+          // but rather as a sibling, which is more accurate in terms of the note structure after the split.
+
+
+          // TODO: updateOriginChildren - this will be needed to update the origin children list.
+          //this.NRDoc.updateOriginFrontmatter(originNote, contentToInsert);
+        }
       }
   }
 
@@ -195,7 +204,11 @@ export default class NoteRefactor extends Plugin {
       note = this.NRDoc.templatedContent(note, this.settings.refactoredNoteTemplate, mdView.file.basename, link, fileName, newNoteLink, '', note);
     }
     await this.obsFile.createOrAppendFile(fileName, note);
+    //TODO: update frontmatter into the new note.
+
     await this.NRDoc.replaceContent(fileName, filePath, doc, mdView.file, note, originalNote, mode);
+    //TODO: update parent in the orinalNote.
+
     // updateOriginChildren is not needed for this method as the original content is not split by headings,
     // but it is replaced as a whole, so the link will replace the whole content in the original note.
     // This means that there won't be any remaining children to update, as the original note's content is entirely
