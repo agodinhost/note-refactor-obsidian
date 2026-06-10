@@ -88,26 +88,4 @@ export default class ObsidianFile {
           await this.createFoldersFromVaultRoot(newFolderPath, folders)
         }
     }
-
-    getFrontmatter(docFile: TFile): FrontMatterCache | null {
-      const cache = this.app.metadataCache.getFileCache(docFile);
-      return cache?.frontmatter ?? null;
-    }
-
-    logFrontmatter(frontmatter: FrontMatterCache | null): void {
-      if (!frontmatter) {
-        console.log("No frontmatter defined.");
-        return;
-      }
-      for (const [key, value] of Object.entries(frontmatter)) {
-        if (Array.isArray(value)) {
-          console.log(`Key: ${key} | Value (array):`);
-          value.forEach((item, index) => {
-            console.log(`  [${index}] ${item}`);
-          });
-        } else {
-          console.log(`Key: ${key} | Value (string): ${value}`);
-        }
-      }
-    }
 }

@@ -1,1 +1,4 @@
-*.ts text eol=lf
+# Prevent Git from automatically converting line endings.
+# This ensures files are committed with their original EOL characters
+# (Windows \r\n, Linux \n, or macOS \r) instead of being normalized.
+* -text

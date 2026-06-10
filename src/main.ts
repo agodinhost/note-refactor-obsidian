@@ -15,6 +15,8 @@ import ObsidianFile from './obsidian-file';
 import NRDoc, { ReplaceMode } from './doc';
 import NoteRefactorModal from './note-modal';
 import ModalNoteCreation from './modal-note-creation';
+import XFile from './xFile';
+import XFrontmatter from './xFrontmatter';
 
 export default class NoteRefactor extends Plugin {
   settings: NoteRefactorSettings;
@@ -117,16 +119,17 @@ export default class NoteRefactor extends Plugin {
   async splitOnHeading(headingLevel: number){
       const mdView = this.app.workspace.activeLeaf.view as MarkdownView;
       const doc = mdView.editor;
+      //TODO: melhor local para a leitura do EOL
       const headingNotes = this.NRDoc.contentSplitByHeading(doc, headingLevel);
       const dedupedFileNames = this.file.ensureUniqueFileNames(headingNotes);
-
-      headingNotes.forEach((hn, i) => this.createNoteWithFirstLineAsFileName(dedupedFileNames[i], hn, mdView, doc, 'replace-headings', true));
 
       if (this.settings.updateFrontmatter) {
         const originFile = mdView.file;
         if(originFile) {
-          const fm = this.obsFile.getFrontmatter(originFile);
-          this.obsFile.logFrontmatter(fm);
+          const fm = new XFrontmatter(this.app, originFile);
+          fm.log
+
+            fm.getAll
 
           // TODO: read the origin tags and pass them to the created notes,
           // and then update the origin children with the new notes,
@@ -141,6 +144,11 @@ export default class NoteRefactor extends Plugin {
           //this.NRDoc.updateOriginFrontmatter(originNote, contentToInsert);
         }
       }
+
+      headingNotes.forEach((hn, i) => {
+        const newNoteTag = dedupedFileNames[i];
+        this.createNoteWithFirstLineAsFileName(dedupedFileNames[i], hn, mdView, doc, 'replace-headings', true)
+      });
   }
 
   async extractSelectionFirstLine(mode: ReplaceMode): Promise<void> {
@@ -169,7 +177,9 @@ export default class NoteRefactor extends Plugin {
     const [header, ...contentArr] = selectedContent;
 
     const fileName = this.file.fileNamePrefix(); // Only prefix is used for the note file name
-    const originalNote = this.NRDoc.noteContent(header, contentArr);
+    const tmp = doc.getValue();
+    const eol = XFile.getNoteEOL(tmp);
+    const originalNote = this.NRDoc.noteContent(header, contentArr, eol);
     let note = originalNote;
     const filePath = await this.obsFile.createOrAppendFile(fileName, '');
 
@@ -194,7 +204,9 @@ export default class NoteRefactor extends Plugin {
     const [originalHeader, ...contentArr] = selectedContent;
 
     const fileName = this.file.sanitisedFileName(dedupedHeader);
-    const originalNote = this.NRDoc.noteContent(originalHeader, contentArr);
+    const tmp = doc.getValue();
+    const eol = XFile.getNoteEOL(tmp);
+    const originalNote = this.NRDoc.noteContent(originalHeader, contentArr, eol);
     let note = originalNote;
     const filePath = await this.obsFile.createOrAppendFile(fileName, '');
 
@@ -229,7 +241,9 @@ export default class NoteRefactor extends Plugin {
   }
   
   loadModal(contentArr:string[], doc:Editor, mode:ReplaceMode): void {
-    let note = this.NRDoc.noteContent(contentArr[0], contentArr.slice(1), true);
+    const tmp = doc.getValue();
+    const eol = XFile.getNoteEOL(tmp);
+    let note = this.NRDoc.noteContent(contentArr[0], contentArr.slice(1), eol, true);
     const modalCreation = new ModalNoteCreation(this.app, this.settings, this.NRDoc, this.file, this.obsFile, note, doc, mode);
     new NoteRefactorModal(this.app, modalCreation).open();
   }

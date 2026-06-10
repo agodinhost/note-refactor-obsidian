@@ -3,6 +3,8 @@ import { HEADING_REGEX } from './constants';
 import MomentDateRegex from './moment-date-regex';
 import { NotePlaceholders } from './placeholder';
 import { NoteRefactorSettings } from './settings';
+import XFile from './xFile';
+
 export type ReplaceMode = 'split' | 'replace-selection' | 'replace-headings';
 
 export default class NRDoc {
@@ -61,13 +63,15 @@ export default class NRDoc {
       output = this.templatePlaceholders.newNoteLink.replace(output, newNoteLink);
       output = this.templatePlaceholders.newNoteContent.replace(output, newNoteContent);
       output = this.templatePlaceholders.newNotePath.replace(output, newNotePath);
+      //TODO: create new placeholders - frontmatter, newNoteFrontmatter
       return output;
     }
 
     selectedContent(doc:Editor): string[] {
       const selectedText = doc.getSelection()
       const trimmedContent = selectedText.trim();
-      return trimmedContent.split('\n')
+      const eol = XFile.getNoteEOL(trimmedContent);
+      return trimmedContent.split(eol)
     }
   
     noteRemainder(doc:Editor): string[] {
@@ -76,11 +80,14 @@ export default class NRDoc {
       const endPosition = doc.offsetToPos(doc.getValue().length);
       const content = doc.getRange(currentLine, endPosition);
       const trimmedContent = content.trim();
-      return trimmedContent.split('\n');
+      const eol = XFile.getNoteEOL(trimmedContent);
+      return trimmedContent.split(eol);
     }
 
     contentSplitByHeading(doc:Editor, headingLevel: number): string[][] {
-      const content = doc.getValue().split('\n');
+      const note = doc.getValue();
+      const eol = XFile.getNoteEOL(note);
+      const content = note.split(eol);
       const parentHeading = new Array(headingLevel).join('#') + ' ';
       const heading = new Array(headingLevel + 1).join('#') + ' ';
       const matches: string[][] = [];
@@ -107,9 +114,8 @@ export default class NRDoc {
       });
       return matches;
     }
-  
-    
-    noteContent(firstLine:string, contentArr:string[], contentOnly?:boolean): string {
+
+    noteContent(firstLine:string, contentArr:string[], eol: string, contentOnly?:boolean): string {
       if(this.settings.includeFirstLineAsNoteHeading){
         //Replaces any non-word characters whitespace leading the first line to enforce consistent heading format from setting
         const headingBaseline = firstLine.replace(HEADING_REGEX, '');
@@ -123,7 +129,7 @@ export default class NRDoc {
       if(this.settings.normalizeHeaderLevels){
         contentArr = this.normalizeHeadingLevels(contentArr);
       }
-      return contentArr.join('\n').trim();
+      return contentArr.join(eol).trim();
     }
 
     normalizeHeadingLevels(contentArr:string[]): string[] {

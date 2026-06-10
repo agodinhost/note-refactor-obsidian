@@ -263,9 +263,10 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
   }
   
   refresh(): void {
-    const vis = this.plugin.settings.updateFrontmatter ? "" : "none";
-    const visFriend = this.plugin.settings.updateFrontmatter && this.plugin.settings.splitNewNotesAs === NoteRelationType.Friend ? "" : "none";
-    const visIncExc = this.plugin.settings.updateFrontmatter && this.plugin.settings.newNotesInheritOriginFields ? "" : "none";
+    const stt = this.plugin.settings;
+    const vis = stt.updateFrontmatter ? "" : "none";
+    const visFriend = stt.updateFrontmatter && stt.splitNewNotesAs === NoteRelationType.Friend ? "" : "none";
+    const visIncExc = stt.updateFrontmatter && stt.newNotesInheritOriginFields ? "" : "none";
     this.splitNewNotesAsSetting.settingEl.style.display = vis;
     this.newNotesFrontmatterComplementSetting.settingEl.style.display = visFriend;
     this.newNotesInheritOriginFieldsSetting.settingEl.style.display = vis;

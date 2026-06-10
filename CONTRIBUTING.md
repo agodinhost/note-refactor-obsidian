@@ -13,6 +13,8 @@ I have included a code of conduct, please follow it in all your interactions wit
 3. If you can, please include tests in your Pull Request, particularly if you are making significant changes or additions to the behaviour of the plugin.
 4. A CI Test Github Action workflow will run when a new Pull Request is made. The Pull Request cannot be completed until that workflow is passing with the plugin successfully building and all tests passing.
 5. The repository maintainer will be responsible for increasing the version numbers in files and the README.md to the new version that this Pull Request would represent once it has been completed and merged. The versioning scheme used is [SemVer](http://semver.org/).
+6. Please, make sure that you are not messing up the EOL of our repository files:
+> git config --global core.autocrlf false
 
 ## Code of Conduct
 
