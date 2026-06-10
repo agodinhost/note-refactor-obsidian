@@ -23,7 +23,7 @@ export default class XFile {
    * - Macintosh → '\r'
    * If the text contains a mix of EOL characters, it will return the one that appears most frequently. If no EOL characters are detected, it defaults to the system's EOL.
    */
-  private static getSystemEOL(): string {
+  static getSystemEOL(): string {
     return os.EOL;
   }
 
