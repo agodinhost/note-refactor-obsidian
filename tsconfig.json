@@ -1,22 +1,25 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
-    "module": "ESNext",
-    "target": "es5",
-    "allowJs": true,
+    "module": "esnext",
+    "target": "esnext",
+    "allowJs": false,
     "noImplicitAny": true,
+    // "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
     "importHelpers": true,
     "lib": [
       "dom",
-      "es5",
-      "scripthost",
-      "es2015"
+      "esnext"
     ]
   },
   "include": [
     "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 }

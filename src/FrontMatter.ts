@@ -6,19 +6,21 @@ import { FrontmatterFormat } from './settings';
 
 import xApp from './xApp';
 
-import yaml from 'js-yaml';
-
 /**
- * Obsidian FrontMatter utility façade.
+ * Obsidian FrontMatter class.
  */
-export default class XFrontMatter {
+export default class FrontMatter {
     private eol: string;
-    private file: TFile | null | undefined;
-    private frontmatter: FrontMatterCache;
+    private file?: TFile;
+    private frontmatter!: FrontMatterCache;
 
-    constructor(eol: string, file?: TFile | null) {
+    constructor(eol: string, file?: TFile) {
         this.eol = eol;
         this.file = file;
+        this.loadFrontmatter(file);
+    }
+
+    async loadFrontmatter(file?: TFile) {
         if (file) {
             /**
              * We can rely on the fact that if metadataCache.getFileCache(file).frontmatter is non‑null, Obsidian has already validated that:
@@ -27,11 +29,11 @@ export default class XFrontMatter {
              * - If the block is malformed (e.g. horizontal rules, random ---), Obsidian won’t populate frontmatter at all — you’ll get null
              */
             const cache = xApp.metadataCache.getFileCache(file);
-            this.frontmatter = cache?.frontmatter ?? {};
+            this.frontmatter = { ...(cache?.frontmatter ?? {}) };
+            if (xApp.settings.updateFrontmatter) this.log();
         } else {
             this.frontmatter = {};
         }
-        if (xApp.settings.updateFrontmatter) this.log();
     }
 
     isEmpty(): boolean {
@@ -44,7 +46,7 @@ export default class XFrontMatter {
 
     log(): void {
         if (!this.frontmatter) {
-            console.log("No frontmatter defined.");
+            console.log('No frontmatter defined.');
             return;
         }
         for (const [key, value] of Object.entries(this.frontmatter)) {
@@ -118,8 +120,22 @@ export default class XFrontMatter {
         }
     }
 
+    getYaml(): string {
+        if (!this.frontmatter) return '';
+        if (xApp.settings.frontmatterFormat === FrontmatterFormat.Normal) {
+            return Object.entries(this.frontmatter)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(this.eol);
+        } else if (xApp.settings.frontmatterFormat === FrontmatterFormat.Compact) {
+            return Object.entries(this.frontmatter)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(', ');
+        }
+        return '';
+    }
+
     /** Persists changes back to the file in the chosen format */
-    async saveChanges(): Promise<void> {
+    async save(): Promise<void> {
         if (!this.file || !this.frontmatter) return;
 
         const content = await xApp.vault.read(this.file);
@@ -131,15 +147,9 @@ export default class XFrontMatter {
         const endIndex = lines.findIndex((line, i) => i > 0 && line.trim() === '---');
         if (endIndex === -1) return;
 
-        const fmBlock = xApp.settings.frontmatterFormat === FrontmatterFormat.Normal ?
-            yaml.dump(this.frontmatter, { lineWidth: -1 }).trim() :
-            Object.entries(this.frontmatter)
-                .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
-                .join(', ');
-
         const newContent = [
             '---',
-            fmBlock,
+            this.getYaml(),
             '---',
             ...lines.slice(endIndex + 1),
         ].join(this.eol);
