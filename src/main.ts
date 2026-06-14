@@ -1,46 +1,30 @@
-import {
-  MarkdownView,
-  Plugin,
-  Vault, 
-  DataAdapter,
-  SuggestModal,
-  getLinkpath,
-  Editor
-} from 'obsidian';
-import MomentDateRegex from './moment-date-regex';
+/* main.ts */
+
+import { MarkdownView, Plugin } from 'obsidian';
+
+import { NoteRefactorSettings, ReplaceMode } from './settings';
 import { NoteRefactorSettingsTab } from './settings-tab';
-import { NoteRefactorSettings } from './settings';
-import NRFile from './file';
-import ObsidianFile from './obsidian-file';
-import NRDoc, { ReplaceMode } from './doc';
-import NoteRefactorModal from './note-modal';
-import ModalNoteCreation from './modal-note-creation';
-import XFile from './xFile';
-import XFrontmatter from './xFrontmatter';
+
+import xApp from './xApp';
+import { ensureUniqueFileNames } from './xFile';
+import ObsNote from './ObsNote';
+
+import NoteRefactorModal from './note-refactor-modal';
+import NoteCreationModal from './note-creation-modal';
 
 export default class NoteRefactor extends Plugin {
-  settings: NoteRefactorSettings;
-  momentDateRegex: MomentDateRegex;
-  obsFile: ObsidianFile;
-  file: NRFile;
-  NRDoc: NRDoc;
-  vault: Vault;
-  vaultAdapter: DataAdapter;
 
-  onInit() {}
+  onInit() { }
 
   async onload() {
     console.log("Loading Note Refactor plugin");
-    this.settings = Object.assign(new NoteRefactorSettings(), await this.loadData());
-    this.momentDateRegex = new MomentDateRegex();
-    this.obsFile = new ObsidianFile(this.settings, this.app)
-    this.file = new NRFile(this.settings);
-    this.NRDoc = new NRDoc(this.settings, this.app.vault, this.app.fileManager);
-    
+    const settings = Object.assign(new NoteRefactorSettings(), await this.loadData());
+    xApp.init(this.app, settings);
+
     this.addCommand({
       id: 'app:extract-selection-first-line',
       name: 'Extract selection to new note - first line as file name',
-      callback: () => this.editModeGuard(async () => await this.extractSelectionFirstLine('replace-selection')),
+      callback: () => this.onEditModeGuard(async () => await this.onExtractSelectionFirstLine('replace-selection')),
       hotkeys: [
         {
           modifiers: ["Mod", "Shift"],
@@ -52,7 +36,7 @@ export default class NoteRefactor extends Plugin {
     this.addCommand({
       id: 'app:extract-selection-content-only',
       name: 'Extract selection to new note - content only',
-      callback: () => this.editModeGuard(() => this.extractSelectionContentOnly('replace-selection')),
+      callback: () => this.onEditModeGuard(() => this.onExtractSelectionContentOnly('replace-selection')),
       hotkeys: [
         {
           modifiers: ["Mod", "Shift"],
@@ -64,19 +48,19 @@ export default class NoteRefactor extends Plugin {
     this.addCommand({
       id: 'app:extract-selection-autogenerate-name',
       name: 'Extract selection to new note - only prefix as file name',
-      callback: () => this.editModeGuard(() => this.extractSelectionAutogenerate('replace-selection'))
+      callback: () => this.onEditModeGuard(() => this.onExtractSelectionAutogenerate('replace-selection'))
     });
 
     this.addCommand({
       id: 'app:split-note-first-line',
       name: 'Split note here - first line as file name',
-      callback: () => this.editModeGuard(() => this.extractSelectionFirstLine('split')),
+      callback: () => this.onEditModeGuard(() => this.onExtractSelectionFirstLine('split')),
     });
 
     this.addCommand({
       id: 'app:split-note-content-only',
       name: 'Split note here - content only',
-      callback: () => this.editModeGuard(() => this.extractSelectionContentOnly('split')),
+      callback: () => this.onEditModeGuard(() => this.onExtractSelectionContentOnly('split')),
     });
 
     //TODO: include a option to find the max heading level in the note and split by that, or maybe even by all heading levels at once, creating a hierarchy of notes based on the heading levels.
@@ -84,19 +68,19 @@ export default class NoteRefactor extends Plugin {
     this.addCommand({
       id: 'app:split-note-by-heading-h1',
       name: 'Split note by headings - H1',
-      callback: () => this.editModeGuard(() => this.splitOnHeading(1)),
+      callback: () => this.onEditModeGuard(() => this.onSplitOnHeading(1)),
     });
 
     this.addCommand({
       id: 'app:split-note-by-heading-h2',
       name: 'Split note by headings - H2',
-      callback: () => this.editModeGuard(() => this.splitOnHeading(2)),
+      callback: () => this.onEditModeGuard(() => this.onSplitOnHeading(2)),
     });
 
     this.addCommand({
       id: 'app:split-note-by-heading-h3',
       name: 'Split note by headings - H3',
-      callback: () => this.editModeGuard(() => this.splitOnHeading(3)),
+      callback: () => this.onEditModeGuard(() => this.onSplitOnHeading(3)),
     });
 
     this.addSettingTab(new NoteRefactorSettingsTab(this.app, this));
@@ -106,9 +90,10 @@ export default class NoteRefactor extends Plugin {
     console.log("Unloading Note Refactor plugin");
   }
 
-  editModeGuard(command: () => any): void {
-    const mdView = this.app.workspace.activeLeaf.view as MarkdownView;
-    if(!mdView || mdView.getMode() !== 'source') {
+  onEditModeGuard(command: () => any): void {
+    // const mdView = this.app.workspace.activeLeaf.view as MarkdownView;
+    const mdView = xApp.workspace.getActiveViewOfType(MarkdownView);
+    if (!mdView || mdView.getMode() !== 'source') {
       new Notification('Please use Note Refactor plugin in edit mode');
       return;
     } else {
@@ -116,135 +101,67 @@ export default class NoteRefactor extends Plugin {
     }
   }
 
-  async splitOnHeading(headingLevel: number){
-      const mdView = this.app.workspace.activeLeaf.view as MarkdownView;
-      const doc = mdView.editor;
-      //TODO: melhor local para a leitura do EOL
-      const headingNotes = this.NRDoc.contentSplitByHeading(doc, headingLevel);
-      const dedupedFileNames = this.file.ensureUniqueFileNames(headingNotes);
+  // --------------------------------------------------------------------------------------------------------
 
-      if (this.settings.updateFrontmatter) {
-        const originFile = mdView.file;
-        if(originFile) {
-          const fm = new XFrontmatter(this.app, originFile);
-          fm.log
+  async onSplitOnHeading(headingLevel: number): Promise<void> {
+    const curNote = new ObsNote();
+    const headingNotes = curNote.contentSplitByHeading(headingLevel);
+    const dedupedFileNames = ensureUniqueFileNames(headingNotes);
 
-            fm.getAll
+    //TODO -> working here ...
+    // TODO: read the origin tags and pass them to the created notes,
+    // and then update the origin children with the new notes,
+    // and remove the origin tags from the original note.
 
-          // TODO: read the origin tags and pass them to the created notes,
-          // and then update the origin children with the new notes,
-          // and remove the origin tags from the original note.
+    // This will ensure that the links between the notes are preserved,
+    // and that the origin note is not linked to the new notes as a child,
+    // but rather as a sibling, which is more accurate in terms of the note structure after the split.
 
-          // This will ensure that the links between the notes are preserved,
-          // and that the origin note is not linked to the new notes as a child,
-          // but rather as a sibling, which is more accurate in terms of the note structure after the split.
-
-
-          // TODO: updateOriginChildren - this will be needed to update the origin children list.
-          //this.NRDoc.updateOriginFrontmatter(originNote, contentToInsert);
+    headingNotes.forEach((hn, i) => {
+      if (xApp.settings.updateFrontmatter) {
+        const newNoteFm = xApp.settings.newNotesInheritOriginFields ? curNote.frontmatter.getClone : {};
+        if (xApp.settings.createTagForEachNewNote) {
+          //newNoteFm!.addCaseInsensitive('tags', dedupedFileNames[i])
         }
+        //newNoteFmStr
+        curNote.createNoteWithFirstLineAsFileName(dedupedFileNames[i], hn, 'replace-headings', true)
+      } else {
+        curNote.createNoteWithFirstLineAsFileName(dedupedFileNames[i], hn, 'replace-headings', true)
       }
+    });
 
-      headingNotes.forEach((hn, i) => {
-        const newNoteTag = dedupedFileNames[i];
-        this.createNoteWithFirstLineAsFileName(dedupedFileNames[i], hn, mdView, doc, 'replace-headings', true)
-      });
-  }
-
-  async extractSelectionFirstLine(mode: ReplaceMode): Promise<void> {
-      const mdView = this.app.workspace.activeLeaf.view as MarkdownView;
-      const doc = mdView.editor;
-      if(!mdView) {return}
-      
-      const selectedContent = mode === 'split' ? this.NRDoc.noteRemainder(doc) : this.NRDoc.selectedContent(doc);
-      if(selectedContent.length <= 0) { return }
-
-      await this.createNoteWithFirstLineAsFileName(selectedContent[0], selectedContent, mdView, doc, mode, false);
-  }
-
-  async extractSelectionAutogenerate(mode: ReplaceMode): Promise<void> {
-      const mdView = this.app.workspace.activeLeaf.view as MarkdownView;
-      const doc = mdView.editor;
-      if(!mdView) {return}
-      
-      const selectedContent = mode === 'split' ? this.NRDoc.noteRemainder(doc) : this.NRDoc.selectedContent(doc);
-      if(selectedContent.length <= 0) { return }
-
-      await this.createAutogeneratedNote(selectedContent, mdView, doc, mode, true); // Don't open a new note in a new pane. TODO: perhaps a setting would be useful?
-  }
-
-  private async createAutogeneratedNote(selectedContent: string[], mdView: MarkdownView, doc: Editor, mode: ReplaceMode, isMultiple: boolean) {
-    const [header, ...contentArr] = selectedContent;
-
-    const fileName = this.file.fileNamePrefix(); // Only prefix is used for the note file name
-    const tmp = doc.getValue();
-    const eol = XFile.getNoteEOL(tmp);
-    const originalNote = this.NRDoc.noteContent(header, contentArr, eol);
-    let note = originalNote;
-    const filePath = await this.obsFile.createOrAppendFile(fileName, '');
-
-    if (this.settings.refactoredNoteTemplate !== undefined && this.settings.refactoredNoteTemplate !== '') {
-      const link = await this.app.fileManager.generateMarkdownLink(mdView.file, '', '', '');
-      const newNoteLink = await this.NRDoc.markdownLink(filePath);
-      note = this.NRDoc.templatedContent(note, this.settings.refactoredNoteTemplate, mdView.file.basename, link, fileName, newNoteLink, '', note);
-    }
-
-    await this.obsFile.createOrAppendFile(fileName, note);
-    await this.NRDoc.replaceContent(fileName, filePath, doc, mdView.file, note, originalNote, mode);
-    // updateOriginChildren is not needed for this method as the original content is not split by headings,
-    // but it is replaced as a whole, so the link will replace the whole content in the original note.
-    // This means that there won't be any remaining children to update, as the original note's content is entirely
-    // replaced by the link to the new note. --
-    if(!isMultiple) {
-        await this.app.workspace.openLinkText(fileName, getLinkpath(filePath), true);
+    if (xApp.settings.updateFrontmatter) {
+      // TODO: updateOriginChildren - this will be needed to update the origin children list.
+      //this.NRDoc.updateOriginFrontmatter(originNote, contentToInsert);
     }
   }
 
-  private async createNoteWithFirstLineAsFileName(dedupedHeader: string, selectedContent: string[], mdView: MarkdownView, doc: Editor, mode: ReplaceMode, isMultiple: boolean) {
-    const [originalHeader, ...contentArr] = selectedContent;
-
-    const fileName = this.file.sanitisedFileName(dedupedHeader);
-    const tmp = doc.getValue();
-    const eol = XFile.getNoteEOL(tmp);
-    const originalNote = this.NRDoc.noteContent(originalHeader, contentArr, eol);
-    let note = originalNote;
-    const filePath = await this.obsFile.createOrAppendFile(fileName, '');
-
-    if (this.settings.refactoredNoteTemplate !== undefined && this.settings.refactoredNoteTemplate !== '') {
-      const link = await this.app.fileManager.generateMarkdownLink(mdView.file, '', '', '');
-      const newNoteLink = await this.NRDoc.markdownLink(filePath);
-      note = this.NRDoc.templatedContent(note, this.settings.refactoredNoteTemplate, mdView.file.basename, link, fileName, newNoteLink, '', note);
-    }
-    await this.obsFile.createOrAppendFile(fileName, note);
-    //TODO: update frontmatter into the new note.
-
-    await this.NRDoc.replaceContent(fileName, filePath, doc, mdView.file, note, originalNote, mode);
-    //TODO: update parent in the orinalNote.
-
-    // updateOriginChildren is not needed for this method as the original content is not split by headings,
-    // but it is replaced as a whole, so the link will replace the whole content in the original note.
-    // This means that there won't be any remaining children to update, as the original note's content is entirely
-    // replaced by the link to the new note. --
-    if(!isMultiple && this.settings.openNewNote) {
-        await this.app.workspace.openLinkText(fileName, getLinkpath(filePath), true);
-    }
+  async onExtractSelectionFirstLine(mode: ReplaceMode): Promise<void> {
+    const curNote = new ObsNote();
+    const selectedContent = mode === 'split' ? curNote.noteRemainder() : curNote.selectedContent();
+    if (selectedContent.length <= 0) { return }
+    await curNote.createNoteWithFirstLineAsFileName(selectedContent[0], selectedContent, mode, false);
   }
 
-  extractSelectionContentOnly(mode:ReplaceMode): void {
-    const mdView = this.app.workspace.activeLeaf.view as MarkdownView;
-    if(!mdView) {return}
-    const doc = mdView.editor;
-    
-    const contentArr = mode === 'split' ? this.NRDoc.noteRemainder(doc): this.NRDoc.selectedContent(doc);
-    if(contentArr.length <= 0) { return }
-    this.loadModal(contentArr, doc, mode);
+  async onExtractSelectionAutogenerate(mode: ReplaceMode): Promise<void> {
+    const curNote = new ObsNote();
+    const selectedContent = mode === 'split' ? curNote.noteRemainder() : curNote.selectedContent();
+    if (selectedContent.length <= 0) { return }
+    await curNote.createAutogeneratedNote(selectedContent, mode, true); // Don't open a new note in a new pane. TODO: perhaps a setting would be useful?
   }
-  
-  loadModal(contentArr:string[], doc:Editor, mode:ReplaceMode): void {
-    const tmp = doc.getValue();
-    const eol = XFile.getNoteEOL(tmp);
-    let note = this.NRDoc.noteContent(contentArr[0], contentArr.slice(1), eol, true);
-    const modalCreation = new ModalNoteCreation(this.app, this.settings, this.NRDoc, this.file, this.obsFile, note, doc, mode);
-    new NoteRefactorModal(this.app, modalCreation).open();
+
+  onExtractSelectionContentOnly(mode: ReplaceMode): void {
+    const curNote = new ObsNote();
+    const selectedContent = mode === 'split' ? curNote.noteRemainder() : curNote.selectedContent();
+    if (selectedContent.length <= 0) { return }
+    this.loadModal(selectedContent, curNote, mode);
+  }
+
+  loadModal(contentArr: string[], curNote: ObsNote, mode: ReplaceMode): void {
+    const content = curNote.noteContent(contentArr[0], contentArr.slice(1), true);
+    const noteCreationModal = new NoteCreationModal(curNote, content, mode);
+    new NoteRefactorModal(noteCreationModal).open();
   }
 }
+
+/* EOF */

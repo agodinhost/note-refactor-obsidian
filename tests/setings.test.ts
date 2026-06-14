@@ -1,4 +1,4 @@
-import {describe, expect, beforeAll, afterAll} from '@jest/globals';
+import { describe, expect } from '@jest/globals';
 import { Location, NoteRefactorSettings } from '../src/settings';
 
 const settings = new NoteRefactorSettings();

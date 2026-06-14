@@ -1,19 +1,20 @@
-import {
-  App,
-  PluginSettingTab,
-  Setting
-} from 'obsidian';
-import { Location, NoteRelationType } from './settings';
-import MomentDateRegex from './moment-date-regex';
+/* settings-tabs.ts */
+
+import { App, PluginSettingTab, Setting } from 'obsidian';
+
+import { FrontmatterFormat, Location, NoteRelationType } from './settings';
+
+import xApp from './xApp';
+import { replaceDateMask } from './xDateFns';
 import NoteRefactor from './main';
 
 export class NoteRefactorSettingsTab extends PluginSettingTab {
   folderUPop = document.createElement('b');
   filePrefixUPop = document.createElement('b');
-  momentDateRegex = new MomentDateRegex();
   plugin: NoteRefactor;
   //
   splitNewNotesAsSetting!: Setting;
+  frontmatterFormatSetting!: Setting;
   newNotesInheritOriginFieldsSetting!: Setting;
   newNotesFrontmatterComplementSetting!: Setting;
   newNotesFrontmatterIncludesSetting!: Setting;
@@ -39,24 +40,24 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
           .addOption(Location[Location.VaultFolder], "Vault folder")
           .addOption(Location[Location.SameFolder], "Same folder as current file")
           .addOption(Location[Location.SpecifiedFolder], "In the folder specified below")
-          .setValue(Location[this.plugin.settings.newFileLocation] || Location.VaultFolder.toString())
+          .setValue(Location[xApp.settings.newFileLocation] || Location.VaultFolder.toString())
           .onChange((value: string) => {
-            this.plugin.settings.newFileLocation = Location[value as keyof typeof Location];
-            this.plugin.saveData(this.plugin.settings);
+            xApp.settings.newFileLocation = Location[value as keyof typeof Location];
+            this.plugin.saveData(xApp.settings);
             this.display();
           }));
 
-    if (this.plugin.settings.newFileLocation == Location.SpecifiedFolder) {
+    if (xApp.settings.newFileLocation == Location.SpecifiedFolder) {
       new Setting(containerEl)
         .setName('Folder for new notes')
         .setDesc(this.folderDescriptionContent())
         .addTextArea((text) =>
           text
             .setPlaceholder("Example: folder 1/folder")
-            .setValue(this.plugin.settings.customFolder)
+            .setValue(xApp.settings.customFolder)
             .onChange((value) => {
-              this.plugin.settings.customFolder = value;
-              this.plugin.saveData(this.plugin.settings);
+              xApp.settings.customFolder = value;
+              this.plugin.saveData(xApp.settings);
               this.updateFolderUPop();
             }));
     }
@@ -66,11 +67,11 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
       .setDesc(this.filenamePrefixDescriptionContent())
       .addTextArea((text) => {
         text
-          .setPlaceholder("Example: {{date:YYYYMMDDHHmm}}-")
-          .setValue(this.plugin.settings.fileNamePrefix || '')
+          .setPlaceholder("Example: {{date:yyyyMMddHHmm}}-")
+          .setValue(xApp.settings.fileNamePrefix || '')
           .onChange((value) => {
-            this.plugin.settings.fileNamePrefix = value;
-            this.plugin.saveData(this.plugin.settings);
+            xApp.settings.fileNamePrefix = value;
+            this.plugin.saveData(xApp.settings);
             this.updateFileNamePrefixUPop();
           });
         text.inputEl.rows = 2;
@@ -80,10 +81,10 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Transclude by default')
       .setDesc('When content has been extracted/split into a new note, include a transclusion of the new note')
-      .addToggle(toggle => toggle.setValue(this.plugin.settings.transcludeByDefault)
+      .addToggle(toggle => toggle.setValue(xApp.settings.transcludeByDefault)
         .onChange((value) => {
-          this.plugin.settings.transcludeByDefault = value;
-          this.plugin.saveData(this.plugin.settings);
+          xApp.settings.transcludeByDefault = value;
+          this.plugin.saveData(xApp.settings);
         }));
 
     new Setting(containerEl)
@@ -92,10 +93,10 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
       .addTextArea((text) => {
         text
           .setPlaceholder("Example:\n\nSee also -> {{new_note_link}}")
-          .setValue(this.plugin.settings.noteLinkTemplate || '')
+          .setValue(xApp.settings.noteLinkTemplate || '')
           .onChange((value) => {
-            this.plugin.settings.noteLinkTemplate = value;
-            this.plugin.saveData(this.plugin.settings);
+            xApp.settings.noteLinkTemplate = value;
+            this.plugin.saveData(xApp.settings);
             return text;
           })
         text.inputEl.rows = 10;
@@ -108,10 +109,10 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
       .addTextArea((text) => {
         text
           .setPlaceholder('Example:\n\n{{new_note_content}}\n\n---\nLink to original note: {{link}}')
-          .setValue(this.plugin.settings.refactoredNoteTemplate || '')
+          .setValue(xApp.settings.refactoredNoteTemplate || '')
           .onChange((value) => {
-            this.plugin.settings.refactoredNoteTemplate = value;
-            this.plugin.saveData(this.plugin.settings);
+            xApp.settings.refactoredNoteTemplate = value;
+            this.plugin.saveData(xApp.settings);
             return text;
           })
         text.inputEl.rows = 10;
@@ -121,78 +122,92 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Exclude First Line')
       .setDesc('Prevent the first line of selected/split note content from being included in the new note (only applies for first line as file name commands)')
-      .addToggle(toggle => toggle.setValue(this.plugin.settings.excludeFirstLineInNote)
+      .addToggle(toggle => toggle.setValue(xApp.settings.excludeFirstLineInNote)
         .onChange((value) => {
-          this.plugin.settings.excludeFirstLineInNote = value;
-          this.plugin.saveData(this.plugin.settings);
+          xApp.settings.excludeFirstLineInNote = value;
+          this.plugin.saveData(xApp.settings);
           this.display();
         }));
 
     new Setting(containerEl)
       .setName('Include Heading')
       .setDesc('Include first line of selected/split note content as note heading (applies for both first line as title and content only commands)')
-      .addToggle(toggle => toggle.setValue(this.plugin.settings.includeFirstLineAsNoteHeading)
+      .addToggle(toggle => toggle.setValue(xApp.settings.includeFirstLineAsNoteHeading)
         .onChange((value) => {
-          this.plugin.settings.includeFirstLineAsNoteHeading = value;
-          this.plugin.saveData(this.plugin.settings);
+          xApp.settings.includeFirstLineAsNoteHeading = value;
+          this.plugin.saveData(xApp.settings);
           this.display();
         }));
 
     new Setting(containerEl)
       .setName('Open New Note')
       .setDesc('Open the new note in a new pane')
-      .addToggle(toggle => toggle.setValue(this.plugin.settings.openNewNote)
+      .addToggle(toggle => toggle.setValue(xApp.settings.openNewNote)
         .onChange((value) => {
-          this.plugin.settings.openNewNote = value;
-          this.plugin.saveData(this.plugin.settings);
+          xApp.settings.openNewNote = value;
+          this.plugin.saveData(xApp.settings);
         }));
 
-    if (this.plugin.settings.includeFirstLineAsNoteHeading) {
+    if (xApp.settings.includeFirstLineAsNoteHeading) {
       new Setting(containerEl)
         .setName('Heading format')
         .setDesc('Set format of the heading to be included in note content')
         .addText((text) =>
           text
             .setPlaceholder("# or ##")
-            .setValue(this.plugin.settings.headingFormat)
+            .setValue(xApp.settings.headingFormat)
             .onChange((value) => {
-              this.plugin.settings.headingFormat = value;
-              this.plugin.saveData(this.plugin.settings);
+              xApp.settings.headingFormat = value;
+              this.plugin.saveData(xApp.settings);
             }));
     }
 
     new Setting(containerEl)
       .setName('Normalize heading levels')
       .setDesc('When content has been extracted/split into a new note, normalize the levels of the headings')
-      .addToggle(toggle => toggle.setValue(this.plugin.settings.normalizeHeaderLevels)
+      .addToggle(toggle => toggle.setValue(xApp.settings.normalizeHeaderLevels)
         .onChange((value) => {
-          this.plugin.settings.normalizeHeaderLevels = value;
-          this.plugin.saveData(this.plugin.settings);
+          xApp.settings.normalizeHeaderLevels = value;
+          this.plugin.saveData(xApp.settings);
         }));
 
     /* fork settings */
     new Setting(containerEl)
       .setName('Update Frontmatter?')
       .setDesc('When content has been extracted/split into a new note, update the frontmatter children and parent fields to reflect the new note structure')
-      .addToggle(toggle => toggle.setValue(this.plugin.settings.updateFrontmatter)
+      .addToggle(toggle => toggle.setValue(xApp.settings.updateFrontmatter)
         .onChange((value) => {
-          this.plugin.settings.updateFrontmatter = value;
-          this.plugin.saveData(this.plugin.settings);
+          xApp.settings.updateFrontmatter = value;
+          this.plugin.saveData(xApp.settings);
           this.refresh();
         }));
 
-    this.splitNewNotesAsSetting = new Setting(containerEl)
-      .setName("Create New Notes As")
-      .setDesc("How to relate the new notes created during refactoring to the original note?")
+    this.frontmatterFormatSetting = new Setting(containerEl)
+      .setName('Frontmatter Format')
+      .setDesc('Which format to use when adding the frontmatter')
       .addDropdown(dropdown => {
         dropdown
-          .addOption(NoteRelationType.Child, "Child")
-          .addOption(NoteRelationType.Sibling, "Sibling")
-          .addOption(NoteRelationType.Friend, "Friend")
-          .setValue(this.plugin.settings.splitNewNotesAs)
+          .addOption(FrontmatterFormat.Normal, FrontmatterFormat.Normal)
+          .addOption(FrontmatterFormat.Compact, FrontmatterFormat.Compact)
+          .setValue(xApp.settings.frontmatterFormat)
           .onChange((value) => {
-            this.plugin.settings.splitNewNotesAs = value as NoteRelationType;
-            this.plugin.saveData(this.plugin.settings);
+            xApp.settings.frontmatterFormat = value as FrontmatterFormat;
+            this.plugin.saveData(xApp.settings);
+          });
+      });
+
+    this.splitNewNotesAsSetting = new Setting(containerEl)
+      .setName('Create New Notes As')
+      .setDesc('How to relate the new notes created during refactoring to the original note?')
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption(NoteRelationType.Child, NoteRelationType.Child)
+          .addOption(NoteRelationType.Sibling, NoteRelationType.Sibling)
+          .addOption(NoteRelationType.Friend, NoteRelationType.Friend)
+          .setValue(xApp.settings.splitNewNotesAs)
+          .onChange((value) => {
+            xApp.settings.splitNewNotesAs = value as NoteRelationType;
+            this.plugin.saveData(xApp.settings);
             this.refresh();
           });
       });
@@ -204,69 +219,70 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
       .addText((text) =>
         text
           .setPlaceholder('Friend, Left, Right')
-          .setValue(this.plugin.settings.newNotesComplement)
+          .setValue(xApp.settings.newNotesComplement)
           .onChange((value) => {
-            this.plugin.settings.newNotesComplement = value;
-            this.plugin.saveData(this.plugin.settings);
+            xApp.settings.newNotesComplement = value;
+            this.plugin.saveData(xApp.settings);
           }));
 
     this.newNotesInheritOriginFieldsSetting = new Setting(containerEl)
       .setName('New Notes Inherit Origin Fields?')
       .setDesc('When content has been extracted/split into a new note, inherit fields from the original note')
-      .addToggle(toggle => toggle.setValue(this.plugin.settings.newNotesInheritOriginFields)
+      .addToggle(toggle => toggle.setValue(xApp.settings.newNotesInheritOriginFields)
         .onChange((value) => {
-          this.plugin.settings.newNotesInheritOriginFields = value;
-          this.plugin.saveData(this.plugin.settings);
+          xApp.settings.newNotesInheritOriginFields = value;
+          this.plugin.saveData(xApp.settings);
           this.refresh();
         }));
 
     this.newNotesFrontmatterIncludesSetting = new Setting(containerEl)
       .setName('New Notes Frontmatter Includes')
       .setDesc('This setting allows you to specify additional content to be included in the frontmatter of the new notes created during refactoring. ' +
-        'This can be useful for adding specific metadata to the new notes, such as a tag, a category, or any other relevant information that can help to improve organization and searchability within the vault. '+
-        'You can use the same placeholders as in the refactored note template setting. For example, if you want to add a tag with the name of the original note to the new notes, you can use the {{title}} placeholder like this: ' + 
+        'This can be useful for adding specific metadata to the new notes, such as a tag, a category, or any other relevant information that can help to improve organization and searchability within the vault. ' +
+        'You can use the same placeholders as in the refactored note template setting. For example, if you want to add a tag with the name of the original note to the new notes, you can use the {{title}} placeholder like this: ' +
         '#{{title}}  - this will create a tag with the name of the original note for each new note created during refactoring.')
       .addText((text) =>
         text
           .setPlaceholder('left, right')
-          .setValue(this.plugin.settings.newNotesFrontmatterIncludes)
+          .setValue(xApp.settings.newNotesFrontmatterIncludes)
           .onChange((value) => {
-            this.plugin.settings.newNotesFrontmatterIncludes = value;
-            this.plugin.saveData(this.plugin.settings);
+            xApp.settings.newNotesFrontmatterIncludes = value;
+            this.plugin.saveData(xApp.settings);
           }));
 
     this.newNotesFrontmatterExcludesSetting = new Setting(containerEl)
       .setName('New Notes Frontmatter Excludes')
       .setDesc('This setting allows you to specify content to be excluded from the frontmatter of the new notes created during refactoring. ' +
-        'This can be useful for removing specific metadata from the new notes, such as a tag, a category, or any other relevant information that can help to improve organization and searchability within the vault. '+
-        'You can use the same placeholders as in the refactored note template setting. For example, if you want to add a tag with the name of the original note to the new notes, you can use the {{title}} placeholder like this: ' + 
+        'This can be useful for removing specific metadata from the new notes, such as a tag, a category, or any other relevant information that can help to improve organization and searchability within the vault. ' +
+        'You can use the same placeholders as in the refactored note template setting. For example, if you want to add a tag with the name of the original note to the new notes, you can use the {{title}} placeholder like this: ' +
         '#{{title}}  - this will create a tag with the name of the original note for each new note created during refactoring.')
       .addText((text) =>
         text
           .setPlaceholder('up, down')
-          .setValue(this.plugin.settings.newNotesFrontmatterExcludes)
+          .setValue(xApp.settings.newNotesFrontmatterExcludes)
           .onChange((value) => {
-            this.plugin.settings.newNotesFrontmatterExcludes = value;
-            this.plugin.saveData(this.plugin.settings);
+            xApp.settings.newNotesFrontmatterExcludes = value;
+            this.plugin.saveData(xApp.settings);
           }));
 
     this.createTagForEachNewNoteSetting = new Setting(containerEl)
       .setName('Create a Tag For Each New Note?')
       .setDesc('When content has been extracted/split into a new note, create a tag for each new note')
-      .addToggle(toggle => toggle.setValue(this.plugin.settings.createTagForEachNewNote)
+      .addToggle(toggle => toggle.setValue(xApp.settings.createTagForEachNewNote)
         .onChange((value) => {
-          this.plugin.settings.createTagForEachNewNote = value;
-          this.plugin.saveData(this.plugin.settings);
+          xApp.settings.createTagForEachNewNote = value;
+          this.plugin.saveData(xApp.settings);
         }));
 
     this.refresh();
   }
-  
+
   refresh(): void {
-    const stt = this.plugin.settings;
-    const vis = stt.updateFrontmatter ? "" : "none";
-    const visFriend = stt.updateFrontmatter && stt.splitNewNotesAs === NoteRelationType.Friend ? "" : "none";
-    const visIncExc = stt.updateFrontmatter && stt.newNotesInheritOriginFields ? "" : "none";
+    const stt = xApp.settings;
+    const vis = stt.updateFrontmatter ? '' : 'none';
+    const visFriend = stt.updateFrontmatter && stt.splitNewNotesAs === NoteRelationType.Friend ? '' : 'none';
+    const visIncExc = stt.updateFrontmatter && stt.newNotesInheritOriginFields ? '' : 'none';
+    this.frontmatterFormatSetting.settingEl.style.display = vis;
     this.splitNewNotesAsSetting.settingEl.style.display = vis;
     this.newNotesFrontmatterComplementSetting.settingEl.style.display = visFriend;
     this.newNotesInheritOriginFieldsSetting.settingEl.style.display = vis;
@@ -299,7 +315,7 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
   }
 
   private updateFolderUPop() {
-    this.folderUPop.innerText = this.momentDateRegex.replace(this.plugin.settings.customFolder);
+    this.folderUPop.innerText = replaceDateMask(xApp.settings.customFolder);
   }
 
   private filenamePrefixDescriptionContent(): DocumentFragment {
@@ -324,7 +340,7 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
   }
 
   private updateFileNamePrefixUPop() {
-    this.filePrefixUPop.innerText = this.momentDateRegex.replace(this.plugin.settings.fileNamePrefix);
+    this.filePrefixUPop.innerText = replaceDateMask(xApp.settings.fileNamePrefix);
   }
 
   private addMomentDocsLink(descEl: DocumentFragment) {
@@ -336,3 +352,5 @@ export class NoteRefactorSettingsTab extends PluginSettingTab {
     descEl.appendChild(document.createElement('br'));
   }
 }
+
+/* EOF */

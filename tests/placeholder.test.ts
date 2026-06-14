@@ -1,5 +1,7 @@
 import {describe, expect, beforeAll} from '@jest/globals';
-import { NotePlaceholders } from '../src/placeholder';
+
+import { NotePlaceholders } from '../src/settings';
+
 let placholders = new NotePlaceholders();
 let input:string = '';
 let replacement:string = '';

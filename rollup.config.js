@@ -17,7 +17,7 @@ export default {
     format: 'cjs',
     exports: 'default'
   },
-  external: ['obsidian', 'os', 'fs'],
+  external: ['obsidian', 'os', 'fs', 'js-yaml', 'date-fns', 'moment'],
   plugins: [
     typescript(),
     nodeResolve({browser: true}),

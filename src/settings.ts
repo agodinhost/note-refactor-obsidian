@@ -1,3 +1,5 @@
+/* settings.ts */
+
 import { HEADING_FORMAT } from './constants';
 
 export class NoteRefactorSettings {
@@ -23,6 +25,10 @@ export class NoteRefactorSettings {
     /* This setting determines whether to update the frontmatter of the original and new notes after refactoring.
      * If true, the plugin will attempt to update the the origin and new notes frontmatter.
      * When disabled, the plugin will not make any changes into the original and new notes frontmatter.
+     */
+
+    frontmatterFormat: FrontmatterFormat = FrontmatterFormat.Compact;
+    /* This setting determines how to write the frontmatter.
      */
 
     splitNewNotesAs: NoteRelationType = NoteRelationType.Child;
@@ -67,9 +73,46 @@ export enum Location {
     SpecifiedFolder
 }
 
-export enum NoteRelationType {
-  Parent = "parent",
-  Child = "child",
-  Sibling = "sibling",
-  Friend = "friend"
+export enum FrontmatterFormat {
+  Normal = 'Normal',
+  Compact = 'Compact'
 }
+
+export enum NoteRelationType {
+  Parent = 'parent',
+  Child = 'Child',
+  Sibling = 'Sibling',
+  Friend = 'Friend'
+}
+
+export enum EOLType {
+  Windows = '\r\n',
+  Linux = '\n',
+  Macintosh = '\r'
+}
+
+export type ReplaceMode = 'split' | 'replace-selection' | 'replace-headings';
+
+export class NotePlaceholders {
+    newNoteTitle = new Placeholder('new_note_title');
+    newNoteLink = new Placeholder('new_note_link');
+    newNotePath = new Placeholder('new_note_path');
+    newNotePathEncoded = new Placeholder('new_note_path_encoded');
+    newNoteContent = new Placeholder('new_note_content');
+    title = new Placeholder('title');
+    link = new Placeholder('link');
+}
+
+export class Placeholder {
+    key: string;
+
+    constructor(key: string) {
+        this.key = key;
+    }
+
+    replace(input: string, value: string): string {
+        return input.replace(new RegExp(`\{\{${this.key}\}\}`, 'gmi'), () => value);
+    }
+}
+
+/* EOF */
