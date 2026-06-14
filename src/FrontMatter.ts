@@ -39,7 +39,6 @@ export default class FrontMatter {
          */
         const cache = xApp.metadataCache.getFileCache(file);
         this._fm = { ...(cache?.frontmatter ?? {}) };
-        if (xApp.settings.updateFrontmatter) this.log();
     }
 
     extractFrontmatter(content: string): FrontMatterCache {
@@ -98,14 +97,9 @@ export default class FrontMatter {
     }
 
     /** Returns a clone of our frontmatter */
-    get clone(): FrontMatterCache {
+    clone(): FrontMatterCache {
         /* > node 17 */
         return structuredClone(this._fm);
-    }
-
-    /** Returns all fields as a plain object */
-    get record(): Record<string, any> {
-        return this._fm ? { ...this._fm } : {};
     }
 
     isEmpty(): boolean {
@@ -114,23 +108,6 @@ export default class FrontMatter {
             Object.keys(this._fm).length === 0 ||
             Object.values(this._fm).every(v => v === undefined || v === null || v === '')
         );
-    }
-
-    log(): void {
-        if (!this._fm) {
-            console.log('No frontmatter defined.');
-            return;
-        }
-        for (const [key, value] of Object.entries(this._fm)) {
-            if (Array.isArray(value)) {
-                console.log(`Key: ${key} | Value (array):`);
-                value.forEach((item, index) => {
-                    console.log(`  [${index}] ${item}`);
-                });
-            } else {
-                console.log(`Key: ${key} | Value (string): ${value}`);
-            }
-        }
     }
 
     /** Helper: find actual key name by case-insensitive match */

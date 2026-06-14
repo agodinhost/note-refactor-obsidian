@@ -93,6 +93,21 @@ describe('Frontmatter - frontmatter manipulation', () => {
 
     const yaml2 = fm.getYaml();
     expect(yaml2).toBe('tags: [tag1, tag2, tag3, tag4], parent: parent_doc, topic: test-topic');
+
+    expect(fm.has('tags')).toBeTruthy();
+    expect(fm.has('Tags')).toBeTruthy();
+    expect(fm.has('tagS')).toBeTruthy();
+
+    expect(fm.has('topic')).toBeTruthy();
+    fm.remove('topic');
+    expect(fm.has('topic')).toBeFalsy();
+
+    expect(fm.has('tags')).toBeTruthy();
+
+    const fmClone = fm.clone();
+    expect(fm).not.toEqual(fmClone);
+
+
   });
 
 });
