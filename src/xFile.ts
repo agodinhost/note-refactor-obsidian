@@ -34,6 +34,7 @@ export const getNoteEOL = (note: string): string => {
     return score.length === 1 ? score[0][0] : getSystemEOL();
 };
 
+//TODO: remove!
 export const getEditorEOL = (doc: Editor): string => {
     return getNoteEOL(doc.getValue());
 };

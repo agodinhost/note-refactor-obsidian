@@ -119,7 +119,7 @@ export default class NoteRefactor extends Plugin {
 
     headingNotes.forEach((hn, i) => {
       if (xApp.settings.updateFrontmatter) {
-        const newNoteFm = xApp.settings.newNotesInheritOriginFields ? curNote.frontmatter.getClone : {};
+        const newNoteFm = xApp.settings.newNotesInheritOriginFields ? curNote.frontmatter.clone : {};
         if (xApp.settings.createTagForEachNewNote) {
           //newNoteFm!.addCaseInsensitive('tags', dedupedFileNames[i])
         }

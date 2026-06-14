@@ -102,18 +102,20 @@ export class MarkdownView {
   // registerDomEvent: any;
   // registerInterval: any;
   //
-  constructor(content?: string) {
+  constructor() {
   }
 
   async loadContent(filename: string): Promise<MarkdownView> {
+    if (filename == null) throw new Error('required filename is null or undefined')
     this._file = new TFile(filename);
+    /* TODO: encoding should be a parameter somehow */
     const content = await fs.readFile(filename, 'utf8');
     this._editor = new Editor(content);
     return this;
   }
 
   setContent(content: string): MarkdownView {
-    if (!content) throw new Error('required content not provided')
+    if (content == null) throw new Error('required content is null or undefined')
     this._file = new TFile('./mock.md');
     this._editor = new Editor(content);
     return this;

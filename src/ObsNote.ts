@@ -6,9 +6,9 @@ import { HEADING_REGEX } from './constants';
 import { ReplaceMode, NotePlaceholders } from './settings';
 
 import xApp from './xApp';
-import { getEditorEOL, sanitisedFileName, fileNamePrefix } from './xFile';
+import { getNoteEOL, sanitisedFileName, fileNamePrefix } from './xFile';
 import { createOrAppendFile } from './xObsFile';
-import XFrontMatter from './FrontMatter';
+import FrontMatter from './FrontMatter';
 import { replaceDateMask } from './xDateFns';
 
 export default class ObsNote {
@@ -16,7 +16,7 @@ export default class ObsNote {
     public doc: Editor;
     private eol: string;
     private mdFile: TFile | null;
-    private frontMatter: XFrontMatter;
+    private frontMatter: FrontMatter;
     private templatePlaceholders: NotePlaceholders;
 
     constructor() {
@@ -25,16 +25,17 @@ export default class ObsNote {
             this.mdView = mdView;
             this.doc = mdView.editor;
             if(!this.doc) throw new Error('mdView.editor is null');
-            this.eol = getEditorEOL(this.doc);
+            const content = this.doc.getValue();
+            this.eol = getNoteEOL(content);
             this.mdFile = mdView.file;
-            this.frontMatter = new XFrontMatter(this.eol, this.mdFile);
+            this.frontMatter = new FrontMatter(this.eol, this.mdFile!, content);
             this.templatePlaceholders = new NotePlaceholders();
         } else {
             throw new Error('No current note selected ...');
         }
     }
 
-    get frontmatter(): XFrontMatter {
+    get frontmatter(): FrontMatter {
         return this.frontMatter;
     }
 
